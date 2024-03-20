@@ -119,15 +119,15 @@ class Inka:
         # todo: implement bandpass butterworth filter
         # hint: normalize the low and highcuts using the sampling rate
         nyq = 0.5 * fs
-        # lowcut /= nyq
-        # highcut /= nyq
-        b, a = butter(order, [lowcut, highcut], btype='bandpass',fs=fs)
+        # b, a = butter(order, [lowcut / (fs / 2), highcut / (fs / 2)], btype="band")
+        b,a = butter(order, (lowcut/(fs/2), highcut/(fs/2)), btype='bandpass', analog=False)
         return b, a
 
     @staticmethod
     def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
         b, a = Inka.butter_bandpass(lowcut, highcut, fs, order=order)
         y = lfilter(b, a, data, axis=0)
+
         return y
 
     # --- video processing
@@ -140,6 +140,7 @@ class Inka:
     def anim_process_frame(self, i):
         frame = self.frames[i]
         frame_filtered = self.frames_filtered[i]
+
         win_len = 20
         start_idx = np.max([0, i - win_len])
         end_idx = np.max([1, i])
@@ -148,17 +149,19 @@ class Inka:
 
         # todo: calculate the difference between the filtered frames and the median
         # hint: normalize the frame values afterwards
-        frame_diff_median = frame_filtered - self.frame_median
+        frame_diff_median = np.abs(frame_filtered - self.frame_median)
+        # frame_diff_median -= frame_diff_median.min()
+        frame_diff_median = (255*frame_diff_median/frame_diff_median.max()).astype(np.uint8)
 
         # todo: reduce low values to 0
-        frame_diff_median[frame_diff_median < 0] = 0
+        frame_diff_median[frame_diff_median < 100] = 0
 
         # todo: initialize the threshold
-        threshold = 64
+        threshold = 128
 
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-        frame_diff_median_rgb = cv2.applyColorMap(frame_diff_median.astype(np.uint8), cv2.COLORMAP_AUTUMN)
-        frame_diff_median_rgb = cv2.cvtColor(frame_diff_median_rgb.astype(np.uint8), cv2.COLOR_BGR2RGB)
+        frame_diff_median_rgb = cv2.applyColorMap(frame_diff_median, cv2.COLORMAP_AUTUMN)
+        frame_diff_median_rgb = cv2.cvtColor(frame_diff_median_rgb, cv2.COLOR_BGR2RGB)
 
         frame_rgb[frame_diff_median > threshold] = 0
         frame_diff_median_rgb[frame_diff_median < threshold] = 0
