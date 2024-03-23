@@ -11,6 +11,7 @@ h = im.shape[0]
 
 mask = np.zeros([h, w], np.uint8)
 
+
 def mouse_callback(event, x, y, flags, params):
     if event == 1:
         print([x, y])

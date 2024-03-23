@@ -16,7 +16,6 @@ class MainWindow:
         self.start_y = None
         print(self.ds.PatientName)
 
-
         # todo: from ds get windowWidth and windowCenter
         self.winWidth, self.winCenter = self.ds.WindowWidth, self.ds.WindowCenter
 
@@ -44,7 +43,7 @@ class MainWindow:
         self.img = ImageTk.PhotoImage(image=self.image, master=root)
         self.image_on_canvas = self.canvas.create_image(0, 0, anchor=NW, image=self.img)
 
-    def reset(self,event):
+    def reset(self, event):
         self.array = self.data
         self.image = Image.fromarray(self.array)
 
@@ -60,7 +59,9 @@ class MainWindow:
         window_max = window_center + window_width / 2
 
         transformed_data = np.clip(data, window_min, window_max)
-        transformed_data = ((transformed_data - window_min) / (window_max - window_min)) * 255
+        transformed_data = (
+            (transformed_data - window_min) / (window_max - window_min)
+        ) * 255
 
         return transformed_data.astype(np.uint8)
 
@@ -75,7 +76,9 @@ class MainWindow:
         delta_x = event.x - self.start_x
         delta_y = event.y - self.start_y
 
-        self.array2 = self.transform_data(self.data, self.winWidth + delta_x, self.winCenter + delta_y)
+        self.array2 = self.transform_data(
+            self.data, self.winWidth + delta_x, self.winCenter + delta_y
+        )
         self.image2 = Image.fromarray(self.array2)
         self.image2 = self.image2.resize((512, 512), Image.LANCZOS)
         self.img2 = ImageTk.PhotoImage(image=self.image2, master=root)
@@ -109,8 +112,8 @@ class MainWindow:
         # todo: print measured length in mm
         print("x: " + str(event.x) + " y: " + str(event.y))
         length_pixels = (
-            ((event.x - self.start_measurement_x)/self.spacing_x) ** 2
-            + ((event.y - self.start_measurement_y)/self.spacing_y) ** 2
+            ((event.x - self.start_measurement_x) / self.spacing_x) ** 2
+            + ((event.y - self.start_measurement_y) / self.spacing_y) ** 2
         ) ** 0.5
         print("Measured length: {:.2f} mm".format(length_pixels))
 
