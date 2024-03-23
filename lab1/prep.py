@@ -85,7 +85,9 @@ class Inka:
             print('gauss filtering...')
             # todo: implement gaussian filtering
             # this should be a list of filtered vieo frames
-            frames_filtered = gaussian_filter(frames, sigma=5)
+
+            frames_filtered = [gaussian_filter(frame, sigma=1.0) for frame in frames]
+
             print('gauss filtering finished')
 
             with open(path_pickle, 'wb') as handle:
@@ -118,9 +120,9 @@ class Inka:
     def butter_bandpass(lowcut, highcut, fs, order=5):
         # todo: implement bandpass butterworth filter
         # hint: normalize the low and highcuts using the sampling rate
-        nyq = 0.5 * fs
-        # b, a = butter(order, [lowcut / (fs / 2), highcut / (fs / 2)], btype="band")
-        b,a = butter(order, (lowcut/(fs/2), highcut/(fs/2)), btype='bandpass', analog=False)
+
+        b,a = butter(order, (lowcut, highcut), btype='bandpass', analog=False,fs=fs)
+
         return b, a
 
     @staticmethod
@@ -144,23 +146,25 @@ class Inka:
         win_len = 20
         start_idx = np.max([0, i - win_len])
         end_idx = np.max([1, i])
+
         # todo: calculate median of frames between start and end idxs
         self.frame_median = np.median(self.frames_filtered[start_idx:end_idx], axis=0)
 
         # todo: calculate the difference between the filtered frames and the median
         # hint: normalize the frame values afterwards
+
+        # frame_diff_median = np.abs(frame_filtered - self.frame_median)
+        # frame_diff_median = (255*frame_diff_median/frame_diff_median.max()).astype(np.uint8)
+
         frame_diff_median = np.abs(frame_filtered - self.frame_median)
-        # frame_diff_median -= frame_diff_median.min()
-        frame_diff_median = (255*frame_diff_median/frame_diff_median.max()).astype(np.uint8)
+        frame_diff_median = cv2.normalize(frame_diff_median, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
 
         # todo: reduce low values to 0
-        frame_diff_median[frame_diff_median < 100] = 0
-
-        # todo: initialize the threshold
-        threshold = 128
+        threshold = 80
+        frame_diff_median[frame_diff_median < threshold] = 0
 
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-        frame_diff_median_rgb = cv2.applyColorMap(frame_diff_median, cv2.COLORMAP_AUTUMN)
+        frame_diff_median_rgb = cv2.applyColorMap(frame_diff_median.astype(np.uint8), cv2.COLORMAP_AUTUMN)
         frame_diff_median_rgb = cv2.cvtColor(frame_diff_median_rgb, cv2.COLOR_BGR2RGB)
 
         frame_rgb[frame_diff_median > threshold] = 0
@@ -173,7 +177,7 @@ class Inka:
         if i == 0:
             self.signal_x = [0]
             self.signal_y = [0]
-            self.roi_cx = 490
+            self.roi_cx = 310
             self.roi_cy = 50
         if i > 20:
             roi_x1 = self.roi_cx - self.roi_size
@@ -191,8 +195,8 @@ class Inka:
                 blob_cx = int(roi_moments["m10"] / roi_moments["m00"])
                 blob_cy = int(roi_moments["m01"] / roi_moments["m00"])
                 # print('blob bcx {} bcy {}'.format(blob_cx, blob_cy))
-                self.roi_cx = min(frame.shape[1], max(self.roi_size, roi_x1 + blob_cx))
-                self.roi_cy = min(frame.shape[0], max(self.roi_size, roi_y1 + blob_cy))
+                # self.roi_cx = min(frame.shape[1], max(self.roi_size, roi_x1 + blob_cx))
+                # self.roi_cy = min(frame.shape[0], max(self.roi_size, roi_y1 + blob_cy))
             else:
                 pass
             from_median_initial20_diff = np.abs(frame_filtered - self.median_initial20)
