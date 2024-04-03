@@ -14,6 +14,10 @@ class MainWindow:
         # print patient name
         self.start_x = None
         self.start_y = None
+
+        print("Width  :", self.ds.WindowWidth)
+        print("Center :", self.ds.WindowCenter)
+
         print(self.ds.PatientName)
 
         # todo: from ds get windowWidth and windowCenter
@@ -24,7 +28,7 @@ class MainWindow:
         self.canvas.grid(row=0, column=0)
         self.canvas.bind("<Button-1>", self.init_window)
         self.canvas.bind("<B1-Motion>", self.update_window)
-        self.canvas.bind("<Button-2>", self.reset)
+        self.canvas.bind("<Button-2>", self.reset_window)
         self.canvas.bind("<Button-3>", self.init_measurement)
         self.canvas.bind("<B3-Motion>", self.update_measurement)
         self.canvas.bind("<ButtonRelease-3>", self.finish_measurement)
@@ -37,15 +41,6 @@ class MainWindow:
         self.image = Image.fromarray(self.array)
 
         self.spacing_x, self.spacing_y = self.ds.PixelSpacing
-
-        # ANTIALIAS is deprecated. Use LANCZOS instead
-        self.image = self.image.resize((512, 512), Image.LANCZOS)
-        self.img = ImageTk.PhotoImage(image=self.image, master=root)
-        self.image_on_canvas = self.canvas.create_image(0, 0, anchor=NW, image=self.img)
-
-    def reset(self, event):
-        self.array = self.data
-        self.image = Image.fromarray(self.array)
 
         # ANTIALIAS is deprecated. Use LANCZOS instead
         self.image = self.image.resize((512, 512), Image.LANCZOS)
@@ -83,6 +78,15 @@ class MainWindow:
         self.image2 = self.image2.resize((512, 512), Image.LANCZOS)
         self.img2 = ImageTk.PhotoImage(image=self.image2, master=root)
         self.canvas.itemconfig(self.image_on_canvas, image=self.img2)
+
+    def reset_window(self, event):
+        self.array = self.data
+        self.image = Image.fromarray(self.array)
+
+        # ANTIALIAS is deprecated. Use LANCZOS instead
+        self.image = self.image.resize((512, 512), Image.LANCZOS)
+        self.img = ImageTk.PhotoImage(image=self.image, master=root)
+        self.image_on_canvas = self.canvas.create_image(0, 0, anchor=NW, image=self.img)
 
     def init_measurement(self, event):
         # todo: save mouse position
