@@ -4,3 +4,4 @@ processed_data
 .idea
 *.dcm
 *.pptx
+.ipynb_checkpoints
