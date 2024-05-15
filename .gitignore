@@ -5,3 +5,5 @@ processed_data
 *.dcm
 *.pptx
 .ipynb_checkpoints
+*.tfm
+*.jpg
