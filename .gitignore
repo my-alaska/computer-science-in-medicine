@@ -7,3 +7,4 @@ processed_data
 .ipynb_checkpoints
 *.tfm
 *.jpg
+*.BMP
