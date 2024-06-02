@@ -8,20 +8,41 @@ dataDir = "Real_subset"
 
 def preprocess(image):
     # todo preprocessing
-    img = cv2.equalizeHist(image)
+    R, G, B = cv2.split(image)
+
+    output1_R = cv2.equalizeHist(R)
+    output1_G = cv2.equalizeHist(G)
+    output1_B = cv2.equalizeHist(B)
+
+    image = cv2.merge((output1_R, output1_G, output1_B))
     return image
 
 
-def features_extraction(image):
+def features_extraction(image, mode = "SIFT"):
     # todo feature extraction - sift, surf, fast, brief ...
     # surf = cv2.xfeatures2d.SURF_create(400) # surf is a non-free tool
 
-    fast = cv2.FastFeatureDetector_create()
-    fast.setNonmaxSuppression(0)
-    kp = fast.detect(image, None)
+    if mode == "SIFT":
+        sift = cv2.xfeatures2d.SIFT_create()
+        kp, desc = sift.detectAndCompute(image, None)
+        return kp, desc
+
+    if mode == "BRIEF":
+        star = cv2.xfeatures2d.StarDetector_create()
+        kp = star.detect(image, None)
+    elif mode == "FAST":
+        fast = cv2.FastFeatureDetector_create()
+        fast.setNonmaxSuppression(0)
+        kp = fast.detect(image, None)
 
 
-    return sift.detectAndCompute(image, None)
+    brief = cv2.xfeatures2d.BriefDescriptorExtractor_create()
+    kp, desc = brief.compute(image, kp)
+
+    return kp, desc
+
+
+
 
 
 test_preprocessed = preprocess(test_original)
@@ -29,10 +50,10 @@ cv2.imshow("Original", cv2.resize(test_preprocessed, None, fx=1, fy=1))
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 
-sift = cv2.xfeatures2d.SIFT_create()
 
 
-keypoints_1, descriptors_1 = features_extraction(test_preprocessed)
+for mode in ["BRIEF", "FAST","SIFT", ]:
+    keypoints_1, descriptors_1 = features_extraction(test_preprocessed,mode)
 
 for file in [file for file in os.listdir("Real_subset")]:
     fingerprint_database_image = cv2.imread("./Real_subset/" + file)
