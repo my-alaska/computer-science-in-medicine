@@ -1,13 +1,11 @@
+from pathlib import Path
+
 import cv2
 import os
 
-test_original = cv2.imread("Altered-custom/1__M_Left_index_finger_szum.BMP")
-
-dataDir = "Real_subset"
-
 
 def preprocess(image):
-    # todo preprocessing
+    # image preprocessing - histogram equalization
     R, G, B = cv2.split(image)
 
     output1_R = cv2.equalizeHist(R)
@@ -18,10 +16,8 @@ def preprocess(image):
     return image
 
 
-def features_extraction(image, mode = "SIFT"):
-    # todo feature extraction - sift, surf, fast, brief ...
+def feature_extraction(image, mode="SIFT"):
     # surf = cv2.xfeatures2d.SURF_create(400) # surf is a non-free tool
-
     if mode == "SIFT":
         sift = cv2.xfeatures2d.SIFT_create()
         kp, desc = sift.detectAndCompute(image, None)
@@ -36,64 +32,60 @@ def features_extraction(image, mode = "SIFT"):
         kp = fast.detect(image, None)
 
 
+
     brief = cv2.xfeatures2d.BriefDescriptorExtractor_create()
     kp, desc = brief.compute(image, kp)
-
+    print(kp)
+    print(desc)
     return kp, desc
 
+# possible options for image preprocessing are "SIFT", "BRIEF" and "FAST"
+# BRIEF doesn't return any keypoints
+# FAST throws an error in knnMatch later in the code
+PREPROCESSING_MODE = "SIFT"
+DATA_DIR = "Real_subset"
 
+if __name__ == "__main__":
 
+    # read original image
+    original_image_path = Path("Altered-custom", "1__M_Left_index_finger_zamazanie.BMP")
+    original_image = cv2.imread(original_image_path)
 
-
-test_preprocessed = preprocess(test_original)
-cv2.imshow("Original", cv2.resize(test_preprocessed, None, fx=1, fy=1))
-cv2.waitKey(0)
-cv2.destroyAllWindows()
-
-
-
-for mode in ["BRIEF", "FAST","SIFT", ]:
-    keypoints_1, descriptors_1 = features_extraction(test_preprocessed,mode)
-
-for file in [file for file in os.listdir("Real_subset")]:
-    fingerprint_database_image = cv2.imread("./Real_subset/" + file)
-
-    keypoints_2, descriptors_2 = features_extraction(
-        preprocess(fingerprint_database_image)
+    # detect keypoints in original image
+    original_keypoints, original_descriptors = feature_extraction(
+        preprocess(original_image), PREPROCESSING_MODE
     )
 
-    matches = cv2.FlannBasedMatcher(dict(algorithm=1, trees=10), dict()).knnMatch(
-        descriptors_1, descriptors_2, k=2
-    )
+    # iterate through files in "real subset" searching for similar keypoints
+    for file in os.listdir(DATA_DIR):
 
-    match_points = []
+        # read a new image
+        image = cv2.imread(Path(DATA_DIR, file))
+        kp, desc = feature_extraction(preprocess(image),PREPROCESSING_MODE)
 
-    for p, q in matches:
-        if p.distance < 0.1 * q.distance:
-            match_points.append(p)
+        # find matching keypoints between two images
+        flann_matcher = cv2.FlannBasedMatcher({"algorithm": 1, "trees": 10}, {})
+        matches = flann_matcher.knnMatch(original_descriptors, desc, k=2)
 
-    keypoints = 0
+        # filter out the points using a threshold test. The value of threshold is 0.1
+        match_points = [p for p, q in matches if p.distance < 0.1 * q.distance]
 
-    if len(keypoints_1) <= len(keypoints_2):
-        keypoints = len(keypoints_1)
-    else:
-        keypoints = len(keypoints_2)
+        # get number of kepoints to display
+        num_keypoints = min(len(original_keypoints), len(kp))
 
-    if (len(match_points) / keypoints) > 0:
-        print("% match: ", len(match_points) / keypoints * 100)
-        print("Fingerprint ID: " + str(file))
+        if len(match_points) > 0:
+            percentage_matching = round(len(match_points) / num_keypoints * 100, 2)
 
-        result = cv2.drawMatches(
-            test_original,
-            keypoints_1,
-            fingerprint_database_image,
-            keypoints_2,
-            match_points,
-            None,
-        )
+            print(f"number of matches    : {len(match_points)}")
+            print(f"number of keypoints  : {num_keypoints}")
+            print(f"% of matching points : {percentage_matching} %")
+            print(f"matching file name   : {file}",end="\n\n")
 
-        result = cv2.resize(result, None, fx=2.5, fy=2.5)
-        cv2.imshow("result", result)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-        print(str(len(match_points)) + " " + str(keypoints))
+            result = cv2.drawMatches(
+                original_image, original_keypoints, image, kp, match_points, None
+            )
+
+            result = cv2.resize(result, None, fx=5, fy=5)
+            cv2.imshow("result", result)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
