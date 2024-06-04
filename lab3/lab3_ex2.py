@@ -1,7 +1,7 @@
 import vtk
 
 # Load DICOM data
-dir = 'mr_brainixA'
+dir = "mr_brainixA"
 reader = vtk.vtkDICOMImageReader()
 reader.SetDirectoryName(dir)
 reader.Update()
@@ -43,24 +43,31 @@ iren.SetRenderWindow(renWin)
 # Slider to change iso value
 iso_slider_rep = vtk.vtkSliderRepresentation2D()
 iso_slider_rep.GetPoint1Coordinate().SetCoordinateSystemToNormalizedDisplay()
-iso_slider_rep.GetPoint1Coordinate().SetValue(.7, .1)
+iso_slider_rep.GetPoint1Coordinate().SetValue(0.7, 0.1)
 iso_slider_rep.GetPoint2Coordinate().SetCoordinateSystemToNormalizedDisplay()
-iso_slider_rep.GetPoint2Coordinate().SetValue(.9, .1)
+iso_slider_rep.GetPoint2Coordinate().SetValue(0.9, 0.1)
 iso_slider_rep.SetMinimumValue(0)
 iso_slider_rep.SetMaximumValue(255)
 iso_slider_rep.SetValue(iso_value)
 iso_slider_rep.SetTitleText("ISO Value")
 
+
 def update_iso_value(value, contourFilter):
     contourFilter.SetValue(0, value)
     renWin.Render()
+
 
 iso_slider_widget = vtk.vtkSliderWidget()
 iso_slider_widget.SetInteractor(iren)
 iso_slider_widget.SetRepresentation(iso_slider_rep)
 iso_slider_widget.SetAnimationModeToAnimate()
 iso_slider_widget.EnabledOn()
-iso_slider_widget.AddObserver('InteractionEvent', lambda obj, event: update_iso_value(obj.GetRepresentation().GetValue(), contourFilter))
+iso_slider_widget.AddObserver(
+    "InteractionEvent",
+    lambda obj, event: update_iso_value(
+        obj.GetRepresentation().GetValue(), contourFilter
+    ),
+)
 
 iren.Initialize()
 iren.Start()
