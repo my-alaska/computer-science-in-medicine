@@ -1,5 +1,6 @@
 import os
 import SimpleITK as sitk
+from matplotlib import pyplot as plt
 
 
 def save_combined_central_slice(fixed, moving, transform, file_name_prefix):
@@ -19,7 +20,7 @@ def save_combined_central_slice(fixed, moving, transform, file_name_prefix):
     # resample the alpha blended images to be isotropic and rescale intensity
     # values so that they are in [0,255], this satisfies the requirements
     # of the jpg format
-    print(iteration_number, ": ", registration_method.GetMetricValue())
+    print(f"iteration : {iteration_number} - metric value : {reg.GetMetricValue()}")
     combined_isotropic = []
     for img in combined:
         original_spacing = img.GetSpacing()
@@ -46,7 +47,6 @@ def save_combined_central_slice(fixed, moving, transform, file_name_prefix):
         )
     # tile the three images into one large image and save using the given file
     # name prefix and the iteration number
-    print(file_name_prefix)
     sitk.WriteImage(
         sitk.Tile(combined_isotropic, (1, 3)),
         file_name_prefix + format(iteration_number, "03d") + ".jpg",
@@ -60,6 +60,11 @@ os.makedirs("output", exist_ok=True)
 fixed_image = sitk.ReadImage("data/nativeFixed.mhd", sitk.sitkFloat32)
 moving_image = sitk.ReadImage("data/tetniceMoving1.mhd", sitk.sitkFloat32)
 
+
+plt.imshow(sitk.GetArrayFromImage(fixed_image[100]))
+plt.plot()
+plt.close()
+
 transform = sitk.CenteredTransformInitializer(
     fixed_image,
     moving_image,
@@ -68,36 +73,51 @@ transform = sitk.CenteredTransformInitializer(
 )
 
 # multi-resolution rigid registration using Mutual Information
-registration_method = sitk.ImageRegistrationMethod()
-registration_method.SetMetricAsMeanSquares()
-registration_method.SetMetricSamplingStrategy(registration_method.REGULAR)
-registration_method.SetMetricSamplingPercentage(1)
-registration_method.SetInterpolator(sitk.sitkLinear)
-registration_method.SetOptimizerAsGradientDescent(
+reg_0 = sitk.ImageRegistrationMethod()
+reg_0.SetMetricAsMeanSquares()
+reg_0.SetMetricSamplingStrategy(reg_0.REGULAR)
+reg_0.SetMetricSamplingPercentage(1)
+reg_0.SetInterpolator(sitk.sitkLinear)
+reg_0.SetOptimizerAsGradientDescent(
     learningRate=1.0,
     numberOfIterations=100,
     convergenceMinimumValue=1e-6,
     convergenceWindowSize=10,
 )
-registration_method.SetInitialTransform(transform)
+
+reg_1 = sitk.ImageRegistrationMethod()
+reg_1.SetMetricAsMattesMutualInformation()
+reg_1.SetMetricSamplingStrategy(reg_1.REGULAR)
+reg_1.SetMetricSamplingPercentage(1)
+reg_1.SetInterpolator(sitk.sitkLinear)
+reg_1.SetOptimizerAsGradientDescent(
+    learningRate=0.5,
+    numberOfIterations=100,
+    convergenceMinimumValue=1e-6,
+    convergenceWindowSize=20,
+)
+
+reg = reg_0
+
+reg.SetInitialTransform(transform)
 
 # add iteration callback, save central slice in xy, xz, yz planes
 global iteration_number
 iteration_number = 0
-registration_method.AddCommand(
+reg.AddCommand(
     sitk.sitkIterationEvent,
     lambda: save_combined_central_slice(
         fixed_image, moving_image, transform, "output/iteration"
     ),
 )
-print("Initial metric: ", registration_method.MetricEvaluate(fixed_image, moving_image))
-final_transform = registration_method.Execute(fixed_image, moving_image)
+print("Initial metric: ", reg.MetricEvaluate(fixed_image, moving_image))
+final_transform = reg.Execute(fixed_image, moving_image)
 
 print(
     "Optimizer's stopping condition, {0}".format(
-        registration_method.GetOptimizerStopConditionDescription()
+        reg.GetOptimizerStopConditionDescription()
     )
 )
-print("Metric value after  registration: ", registration_method.GetMetricValue())
+print("Metric value after  registration: ", reg.GetMetricValue())
 
 sitk.WriteTransform(final_transform, "output/ct2mrT1.tfm")

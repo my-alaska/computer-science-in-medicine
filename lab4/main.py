@@ -17,58 +17,52 @@ def preprocess(image):
 
 
 def feature_extraction(image, mode="SIFT"):
-    # surf = cv2.xfeatures2d.SURF_create(400) # surf is a non-free tool
     if mode == "SIFT":
-        sift = cv2.xfeatures2d.SIFT_create()
-        kp, desc = sift.detectAndCompute(image, None)
-        return kp, desc
+        extractor = cv2.xfeatures2d.SIFT_create()
+    elif mode == "ORB":
+        extractor = cv2.ORB_create(nfeatures=500)
 
-    if mode == "BRIEF":
-        star = cv2.xfeatures2d.StarDetector_create()
-        kp = star.detect(image, None)
-    elif mode == "FAST":
-        fast = cv2.FastFeatureDetector_create()
-        fast.setNonmaxSuppression(0)
-        kp = fast.detect(image, None)
-
-
-
-    brief = cv2.xfeatures2d.BriefDescriptorExtractor_create()
-    kp, desc = brief.compute(image, kp)
-    print(kp)
-    print(desc)
+    kp, desc = extractor.detectAndCompute(image, None)
     return kp, desc
 
-# possible options for image preprocessing are "SIFT", "BRIEF" and "FAST"
-# BRIEF doesn't return any keypoints
-# FAST throws an error in knnMatch later in the code
-PREPROCESSING_MODE = "SIFT"
+
+FEATURIZER_MODE = "SIFT"  # ORB or SIFT
 DATA_DIR = "Real_subset"
 
 if __name__ == "__main__":
-
     # read original image
     original_image_path = Path("Altered-custom", "1__M_Left_index_finger_zamazanie.BMP")
     original_image = cv2.imread(original_image_path)
 
     # detect keypoints in original image
     original_keypoints, original_descriptors = feature_extraction(
-        preprocess(original_image), PREPROCESSING_MODE
+        preprocess(original_image), FEATURIZER_MODE
     )
 
     # iterate through files in "real subset" searching for similar keypoints
     for file in os.listdir(DATA_DIR):
-
         # read a new image
         image = cv2.imread(Path(DATA_DIR, file))
-        kp, desc = feature_extraction(preprocess(image),PREPROCESSING_MODE)
+        kp, desc = feature_extraction(preprocess(image), FEATURIZER_MODE)
 
+        flann_params = (
+            {"algorithm": 1, "trees": 10}
+            if FEATURIZER_MODE == "SIFT"
+            else {
+                "algorithm": 6,
+                "table_number": 6,
+                "key_size": 12,
+                "multi_probe_level": 2,
+            }
+        )
         # find matching keypoints between two images
-        flann_matcher = cv2.FlannBasedMatcher({"algorithm": 1, "trees": 10}, {})
+        flann_matcher = cv2.FlannBasedMatcher(flann_params, {})
         matches = flann_matcher.knnMatch(original_descriptors, desc, k=2)
 
         # filter out the points using a threshold test. The value of threshold is 0.1
-        match_points = [p for p, q in matches if p.distance < 0.1 * q.distance]
+        match_points = [
+            m[0] for m in matches if len(m) == 2 and m[0].distance < 0.1 * m[1].distance
+        ]
 
         # get number of kepoints to display
         num_keypoints = min(len(original_keypoints), len(kp))
@@ -79,7 +73,7 @@ if __name__ == "__main__":
             print(f"number of matches    : {len(match_points)}")
             print(f"number of keypoints  : {num_keypoints}")
             print(f"% of matching points : {percentage_matching} %")
-            print(f"matching file name   : {file}",end="\n\n")
+            print(f"matching file name   : {file}", end="\n\n")
 
             result = cv2.drawMatches(
                 original_image, original_keypoints, image, kp, match_points, None
